@@ -1,7 +1,7 @@
 #include "openpty_task.h"
 
 #include <string>
-#include <iostream>
+#include <spdlog/spdlog.h>
 
 #include "../bpf_task.h"
 #include "../path.h"
@@ -35,7 +35,7 @@ int after_openpty(struct pt_regs* ctx) {
 
 BPFTask<openpty_event_t>* get_openpty_task() {
     auto t = new BPFTask<openpty_event_t>(BPF, "events", [](void* cb_cookie, void* data, int size){
-      std::cout << "OPENPTY();" << std::endl;
+      spdlog::info("[OPENPTY]: END");
     });
     auto attach_ret = t->attach_uprobe(PATH_UTIL, "openpty", "after_openpty", 0, BPF_PROBE_RETURN);
     if (attach_ret.code() != 0) {

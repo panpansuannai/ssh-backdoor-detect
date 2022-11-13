@@ -2,7 +2,6 @@
 
 #include <unistd.h>
 #include <fstream>
-#include <iostream>
 #include <string>
 #include <unordered_map>
 #include <chrono>
@@ -10,6 +9,8 @@
 
 //#include "bcc_version.h"
 #include <bcc/BPF.h>
+
+#include <spdlog/spdlog.h>
 
 #include "path.h"
 #include "bpf_task.h"
