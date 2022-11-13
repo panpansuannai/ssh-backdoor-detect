@@ -18,23 +18,25 @@
 #include "tasks/pam_task.h"
 
 int main() {
-  auto pam_task = get_pam_task();
-  if(pam_task == nullptr) {
-    return 0;
-  }
+  spdlog::set_level(spdlog::level::debug);
   auto openpty_task = get_openpty_task();
   if(openpty_task == nullptr) {
     return 0;
   }
-  std::thread pam_thread([&]() {
-    pam_task->poll_loop();
-  });
-  std::thread openpty_thread([&]() {
+  auto pam_task = get_pam_task();
+  if(pam_task == nullptr) {
+    return 0;
+  }
+  std::thread t1([&]() {
     openpty_task->poll_loop();
   });
-  pam_thread.join();
-  openpty_thread.join();
-  delete pam_task;
+  std::thread t2([&]() {
+    pam_task->poll_loop();
+  });
+  t1.join();
+  t2.join();
+
   delete openpty_task;
+  delete pam_task;
   return 0;
 }
