@@ -9,6 +9,6 @@ typedef struct {
   char pam_func[64];
   char user[64];
   char authtok[64];
-} pam_event_t; 
+} pam_event_t;
 
 BPFTask<pam_event_t>* get_pam_task();

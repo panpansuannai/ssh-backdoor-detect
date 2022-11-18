@@ -4,8 +4,6 @@
 #include <thread>
 #include <vector>
 
-#include <spdlog/spdlog.h>
-
 #include "../bpf_task.h"
 #include "../path.h"
 
@@ -208,26 +206,20 @@ int after_pam_get_authtok(struct pt_regs *ctx, pam_handle_t* phandle) {
 )";
 
 static void callback(void* cb_cookie, void* data, int size) {
-    pam_event_t* event = static_cast<pam_event_t*>(data);
-    spdlog::info("[{}]: username({}), passwd({})", event->pam_func, event->user, event->authtok);
+  pam_event_t* event = static_cast<pam_event_t*>(data);
 }
 
 BPFTask<pam_event_t>* get_pam_task() {
   BPFTask<pam_event_t>* e = new BPFTask<pam_event_t>(BPF, "events", callback);
   std::vector<std::string> attach_uprobes{
-    "pam_open_session",
-    "pam_close_session",
-    "pam_get_authtok",
-    "pam_authenticate",
-    "pam_start",
-    "pam_end",
-    "pam_get_user",
-    "pam_acct_mgmt",
-    "pam_get_item",
-    "pam_setcred",
-   };
-  for(auto func : attach_uprobes) {
-    auto ret = e->attach_uprobe(PATH_PAM, func, "after_" + func, 0, BPF_PROBE_RETURN);
+      "pam_open_session", "pam_close_session", "pam_get_authtok",
+      "pam_authenticate", "pam_start",         "pam_end",
+      "pam_get_user",     "pam_acct_mgmt",     "pam_get_item",
+      "pam_setcred",
+  };
+  for (auto func : attach_uprobes) {
+    auto ret =
+        e->attach_uprobe(PATH_PAM, func, "after_" + func, 0, BPF_PROBE_RETURN);
     if (ret.code() != 0) {
       delete e;
       return nullptr;

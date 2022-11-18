@@ -1,4 +1,6 @@
 all:
-	g++ *.cpp tasks/*.cpp -o task -lbcc -lpthread -lspdlog
+	g++ *.cpp tasks/*.cpp -o task -lbcc -lpthread -llog4cplus
 run: all
-	sudo ./task
+	./task
+format:
+	clang-format --style=file -i *.cpp *.h */*.cpp */*.h

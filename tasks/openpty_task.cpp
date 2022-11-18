@@ -1,7 +1,9 @@
 #include "openpty_task.h"
 
+#include <log4cplus/logger.h>
+
+#include <cstdio>
 #include <string>
-#include <spdlog/spdlog.h>
 
 #include "../bpf_task.h"
 #include "../path.h"
@@ -33,14 +35,15 @@ int after_openpty(struct pt_regs* ctx) {
 }
 )";
 
-BPFTask<openpty_event_t>* get_openpty_task() {
-    auto t = new BPFTask<openpty_event_t>(BPF, "events", [](void* cb_cookie, void* data, int size){
-      spdlog::info("[OPENPTY]: END");
-    });
-    auto attach_ret = t->attach_uprobe(PATH_UTIL, "openpty", "after_openpty", 0, BPF_PROBE_RETURN);
-    if (attach_ret.code() != 0) {
-      delete t;
-      return nullptr;
-    }
-    return t;
+BPFTask<openpty_event_t>* get_openpty_task(log4cplus::Logger& logger) {
+  auto t = new BPFTask<openpty_event_t>(
+      BPF, "events", [](void* cb_cookie, void* data, int size) {});
+  auto attach_ret = t->attach_uprobe(PATH_UTIL, "openpty", "after_openpty", 0,
+                                     BPF_PROBE_RETURN);
+  if (attach_ret.code() != 0) {
+    logger.log(log4cplus::ERROR_LOG_LEVEL, attach_ret.msg());
+    delete t;
+    return nullptr;
+  }
+  return t;
 }

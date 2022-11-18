@@ -1,4 +1,6 @@
 #pragma once
+#include <log4cplus/logger.h>
+
 #include "../bpf_task.h"
 
 struct openpty_event_t {
@@ -10,4 +12,4 @@ struct openpty_event_t {
   char user[125];
 };
 
-BPFTask<openpty_event_t>* get_openpty_task();
+BPFTask<openpty_event_t>* get_openpty_task(log4cplus::Logger&);
