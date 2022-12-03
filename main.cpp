@@ -31,7 +31,7 @@ log4cplus::Logger initialize_logger() {
   appender->setName("STDOUT");
 
   appender->setLayout(unique_ptr<Layout>(
-      new PatternLayout("%d{%Y/%m/%d %H:%M:%S} - %m [%l]%n")));
+      new PatternLayout("%d{%Y/%m/%d %H:%M:%S} - (%l): %m%n")));
 
   auto logger = Logger::getInstance("default");
   logger.addAppender(appender);

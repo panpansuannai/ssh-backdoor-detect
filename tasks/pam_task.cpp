@@ -19,7 +19,9 @@ typedef struct {
   char comm[16];
   int cpu;
   int pam_func;
-  int item_type; // pam_get_item
+  char service_name[16]; // pam_start:0
+  int item_type; // pam_get_item pam_set_item
+  char item[16]; // pam_get_item pam_set_item
   char user[64];
   char authtok[64];
 } pam_event_t; 
@@ -44,7 +46,7 @@ typedef struct
   void *env; /* structure to maintain environment list */
 } pam_handle_t;
 
-int after_pam_open_session(struct pt_regs *ctx, pam_handle_t* phandle) {
+int bpf_pam_open_session(struct pt_regs *ctx, pam_handle_t* phandle) {
     pam_event_t event = {};
     if (bpf_get_current_comm(&event.comm, sizeof(event.comm)) == 0) {
       event.pam_func = PAM_OPEN_SESSION;
@@ -58,7 +60,7 @@ int after_pam_open_session(struct pt_regs *ctx, pam_handle_t* phandle) {
     return 0;
 }
 
-int after_pam_close_session(struct pt_regs *ctx, pam_handle_t* phandle) {
+int bpf_pam_close_session(struct pt_regs *ctx, pam_handle_t* phandle) {
     pam_event_t event = {};
     if (bpf_get_current_comm(&event.comm, sizeof(event.comm)) == 0) {
       event.pam_func = PAM_CLOSE_SESSION;
@@ -72,7 +74,7 @@ int after_pam_close_session(struct pt_regs *ctx, pam_handle_t* phandle) {
     return 0;
 }
 
-int after_pam_vprompt(struct pt_regs *ctx, pam_handle_t* phandle) {
+int bpf_pam_vprompt(struct pt_regs *ctx, pam_handle_t* phandle) {
     pam_event_t event = {};
     if (bpf_get_current_comm(&event.comm, sizeof(event.comm)) == 0) {
       event.pam_func = PAM_VPROMPT;
@@ -86,11 +88,12 @@ int after_pam_vprompt(struct pt_regs *ctx, pam_handle_t* phandle) {
     return 0;
 }
 
-int after_pam_get_item(struct pt_regs *ctx, pam_handle_t* phandle, int item_type, const void** item) {
+int bpf_pam_get_item(struct pt_regs *ctx, pam_handle_t* phandle, int item_type, const void** item) {
     pam_event_t event = {};
     if (bpf_get_current_comm(&event.comm, sizeof(event.comm)) == 0) {
       event.pam_func = PAM_GET_ITEM;
       event.item_type = item_type;
+      bpf_probe_read_user(event.item, 16, *item);
       u64 id = bpf_get_current_pid_tgid();
       event.pid = id >>  32;
       event.cpu = bpf_get_smp_processor_id();
@@ -99,7 +102,21 @@ int after_pam_get_item(struct pt_regs *ctx, pam_handle_t* phandle, int item_type
     return 0;
 }
 
-int after_pam_setcred(struct pt_regs *ctx, pam_handle_t* phandle) {
+int bpf_pam_set_item(struct pt_regs *ctx, pam_handle_t* phandle, int item_type, const void* item) {
+    pam_event_t event = {};
+    if (bpf_get_current_comm(&event.comm, sizeof(event.comm)) == 0) {
+      event.pam_func = PAM_SET_ITEM;
+      event.item_type = item_type;
+      bpf_probe_read(event.item, 16, item);
+      u64 id = bpf_get_current_pid_tgid();
+      event.pid = id >>  32;
+      event.cpu = bpf_get_smp_processor_id();
+      events.perf_submit(ctx, &event, sizeof(event));
+    }
+    return 0;
+}
+
+int bpf_pam_setcred(struct pt_regs *ctx, pam_handle_t* phandle) {
     pam_event_t event = {};
     if (bpf_get_current_comm(&event.comm, sizeof(event.comm)) == 0) {
       event.pam_func = PAM_SETCRED;
@@ -113,12 +130,12 @@ int after_pam_setcred(struct pt_regs *ctx, pam_handle_t* phandle) {
     return 0;
 }
 
-int after_pam_start(struct pt_regs *ctx, pam_handle_t* phandle) {
+int bpf_pam_start(struct pt_regs *ctx, char* service_name, char* user) {
     pam_event_t event = {};
     if (bpf_get_current_comm(&event.comm, sizeof(event.comm)) == 0) {
       event.pam_func = PAM_START;
-      bpf_probe_read_str(event.user, 64, phandle->user);
-      bpf_probe_read_str(event.authtok, 64, phandle->authtok);
+      bpf_probe_read_str(event.service_name, 16, service_name);
+      bpf_probe_read_str(event.user, 64, user);
       u64 id = bpf_get_current_pid_tgid();
       event.pid = id >>  32;
       event.cpu = bpf_get_smp_processor_id();
@@ -127,7 +144,7 @@ int after_pam_start(struct pt_regs *ctx, pam_handle_t* phandle) {
     return 0;
 }
 
-int after_pam_acct_mgmt(struct pt_regs *ctx, pam_handle_t* phandle) {
+int bpf_pam_acct_mgmt(struct pt_regs *ctx, pam_handle_t* phandle) {
     pam_event_t event = {};
     if (bpf_get_current_comm(&event.comm, sizeof(event.comm)) == 0) {
       event.pam_func = PAM_ACCT_MGMT;
@@ -141,7 +158,7 @@ int after_pam_acct_mgmt(struct pt_regs *ctx, pam_handle_t* phandle) {
     return 0;
 }
 
-int after_pam_get_user(struct pt_regs *ctx, pam_handle_t* phandle) {
+int bpf_pam_get_user(struct pt_regs *ctx, pam_handle_t* phandle) {
     pam_event_t event = {};
     if (bpf_get_current_comm(&event.comm, sizeof(event.comm)) == 0) {
       event.pam_func = PAM_GET_USER;
@@ -155,7 +172,7 @@ int after_pam_get_user(struct pt_regs *ctx, pam_handle_t* phandle) {
     return 0;
 }
 
-int after_pam_end(struct pt_regs *ctx, pam_handle_t* phandle) {
+int bpf_pam_end(struct pt_regs *ctx, pam_handle_t* phandle) {
     pam_event_t event = {};
     if (bpf_get_current_comm(&event.comm, sizeof(event.comm)) == 0) {
       event.pam_func = PAM_END;
@@ -169,7 +186,7 @@ int after_pam_end(struct pt_regs *ctx, pam_handle_t* phandle) {
     return 0;
 }
 
-int after_pam_authenticate(struct pt_regs *ctx, pam_handle_t* phandle) {
+int bpf_pam_authenticate(struct pt_regs *ctx, pam_handle_t* phandle) {
     pam_event_t event = {};
     if (bpf_get_current_comm(&event.comm, sizeof(event.comm)) == 0) {
       event.pam_func = PAM_AUTHENTICATE;
@@ -184,12 +201,11 @@ int after_pam_authenticate(struct pt_regs *ctx, pam_handle_t* phandle) {
 }
 
 
-int after_pam_get_authtok(struct pt_regs *ctx, pam_handle_t* phandle) {
+int bpf_pam_get_authtok(struct pt_regs *ctx, pam_handle_t* phandle, int item, const char** authtok) {
     pam_event_t event = {};
     if (bpf_get_current_comm(&event.comm, sizeof(event.comm)) == 0) {
       event.pam_func = PAM_GET_AUTHTOK;
-      bpf_probe_read_str(event.user, 64, phandle->user);
-      bpf_probe_read_str(event.authtok, 64, phandle->authtok);
+      bpf_probe_read_str(event.authtok, 64, *authtok);
       u64 id = bpf_get_current_pid_tgid();
       event.pid = id >>  32;
       event.cpu = bpf_get_smp_processor_id();
@@ -209,6 +225,7 @@ static std::vector<std::shared_ptr<pam_func_handler>> handlers {
   std::make_shared<pam_get_user_handler>(),
   std::make_shared<pam_acct_mgmt_handler>(),
   std::make_shared<pam_get_item_handler>(),
+  std::make_shared<pam_set_item_handler>(),
   std::make_shared<pam_setcred_handler>(),
   std::make_shared<pam_vprompt_handler>(),
 };
@@ -258,7 +275,7 @@ BPFTask<pam_event_t>* get_pam_task() {
   for (auto h : pam_func_handlers) {
     auto func = h.second->get_name();
     auto ret =
-        e->attach_uprobe(PATH_PAM, func, "after_" + func, 0, BPF_PROBE_RETURN);
+        e->attach_uprobe(PATH_PAM, func, "bpf_" + func, 0, h.second->attach_type);
     if (ret.code() != 0) {
       delete e;
     LOG4CPLUS_ERROR_FMT(logger, "pam_task attach_uprobe error: %s", ret.msg().c_str());
